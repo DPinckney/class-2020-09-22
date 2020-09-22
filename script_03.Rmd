@@ -40,7 +40,9 @@ sep_old <-
          title = course_title,
          name = course_name,
          department = course_department) %>% 
-  filter(u_grad > 10)
+  filter(u_grad > 10) %>%
+  group_by(title) %>%
+  summarize(enrollment = sum(u_grad))
 
 # But this is not correct! Look for Gov 50: Data. What do you see? What can you
 # do to clean it up?
@@ -51,6 +53,22 @@ sep_old <-
 
 **Prompt:** Read in and clean the new data, creating an object called `sep_new`. 
 
+```{r}
+sep_new <- 
+  read_excel("new_data/class_enrollment_summary_by_term_9-22-2020.xlsx", 
+             skip = 3) %>% 
+  clean_names() %>% 
+  filter(! is.na(course_title)) %>% 
+  select(-grad, -non_degree, -x_reg, -vus, -employee, 
+         -withdraw, -total, -instructor_full_name, -course_section_code) %>%
+  rename(id = course_id,
+         title = course_title,
+         name = course_name,
+         department = course_department) %>% 
+  filter(u_grad > 10) %>%
+  group_by(title) %>%
+  summarize(enrollment = sum(u_grad))
+```
 
 
 ### Scene 2
@@ -59,18 +77,45 @@ sep_old <-
 
 
 Before we start on the model, Wisdom suggests we should:
-
+# be thoughtful about what we are excluding
+# conscious and specific about what we are focusing
+# careful about assumptions we are making
+# make assumptions that will allow future selves to manage the question and
+# the data
 
 
 
 After we have a model, Temperance suggests we should:
-
+# be aware of the limitations of the data and its validity
+# exercise self-control, discretion, and moderation
 
 
 ### Scene 3
 
 **Prompt:** Which classes had the biggest increases and decreases in undergraduate enrollments between September 1 and today? Make a graphic that shows the 5 biggest increases and decreases. Make it look nice.
 
+```{r}
+sep_combined <- inner_join(sep_new, sep_old, by = "title") %>%
+  rename(enrollment_new = enrollment.x, enrollment_old = enrollment.y) %>%
+  mutate(enrollment_change = (enrollment_new - enrollment_old)) %>%
+  arrange(enrollment_change)
+
+five_decrease <- sep_combined %>%
+  slice(1:5)
+
+five_increase <-sep_combined %>%
+  arrange(desc(enrollment_change)) %>%
+  slice(1:5)
+
+ten_extremes <- rbind(five_increase, five_decrease) %>%
+  mutate(increase = if_else (enrollment_change > 0, "TRUE", "FALSE"))
+
+ggplot(ten_extremes, mapping = aes(y= enrollment_change, x = title, fill = increase)) +
+  geom_col() +
+  labs(title = "Classes with September Enrollment Changes", x = "Class", y = "Change in Enrollment", subtitle = "Top 10 classes with most extreme enrollment changes") +
+  theme(axis.text.x = element_text(size = 9, angle = 45)) +
+  scale_fill_discrete(name = "Enrollment Change", labels = c("Decrease", "Increase"))
+```
 
 
 
@@ -78,6 +123,9 @@ After we have a model, Temperance suggests we should:
 ## Scene 4
 
 **Prompt:**  What might have caused drops in these classes? Assume that one of the causes might have been the amount of work assigned in the first two weeks of class. Create a simplified ideal Preceptor Table (using a spreadsheet of your choice) with no missing data which would allow us to investigate this situation. What data is missing and why? Create an actual Preceptor Table, again using a spreadsheet. How might we investigate the effect of work assigned in the first two weeks? Would the estimated Average Treatment Effect be accurate? Why or why not? Put some bullet points here and be prepared to show your spreadsheet to the class.
+
+```{r}
+```
 
 
 ## Scene 5
